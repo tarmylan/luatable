@@ -96,14 +96,3 @@ class Parser(object):
             value = value * base + digit
             self.take_next()
         return value, count
-
-if __name__ == "__main__":
-    # Examples from Lua 5.2 Reference Manual
-    numbers1 = ['3', '3.0', '3.1416', '314.16e-2', '0.31416E1',
-                '0xff', '0x0.1E', '0xA23p-4', '0X1.921FB54442D18P+1']
-    # Examples from Programming in Lua 3e
-    numbers2 = ['4', '0.4', '4.57e-3', '0.3e12', '5E+20',
-                '0xff', '0x1A3', '0x0.2', '0x1p-1', '0xa.bp2']
-    for num in numbers1 + numbers2:
-        print Parser(num).parse_number()
-
