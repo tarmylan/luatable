@@ -2,70 +2,95 @@
 
 class Parser(object):
 
+    NOMORE = ''
+
     def __init__(self, source):
         self.source = source
         self.index = 0
-        self.current = source[0] if len(source) > 0 else '\0'
+        self.current = source[0] if len(source) > 0 else self.NOMORE
 
     def peak_next(self):
+        """
+        return the next character, leave the index unchanged
+        """
         if self.index + 1 < len(self.source):
             return self.source[self.index + 1]
         else:
-            return '\0'
+            return self.NOMORE
 
     def take_next(self):
+        """
+        return the next character, advance the index
+        """
         if self.index + 1 < len(self.source):
             self.index += 1
             self.current = self.source[self.index]
         else:
-            self.current = '\0'
+            self.index = len(self.source)
+            self.current = self.NOMORE
         return self.current
 
+    def in_sequence(self, char, sequence):
+        """
+        check whether the character is in the sequence
+        """
+        if char != self.NOMORE and char in sequence:
+            return True
+        else:
+            return False
+
     def parse_number(self):
+        """
+        parse a string to number
+        """
         assert self.current == '.' or self.current.isdigit()
 
-        if self.current == '0' and self.peak_next() in 'xX':
+        if self.current == '0' and self.in_sequence(self.peak_next(), 'xX'):
             base = 16
             e_symbols = 'pP'
             e_base = 2
-            self.take_next()
-            self.take_next()
+            self.take_next()  # for '0'
+            self.take_next()  # for 'x' or 'X'
         else:
             base = 10
             e_symbols = 'eE'
             e_base = 10
 
-        # Integer part
-        i_value, i_count = self.parse_integer(base)
+        # integer part
+        i_value, i_count = self.parse_digits(base)
 
-        # Fraction part
+        # fraction part
         f_value, f_count = 0, 0
         if self.current == '.':
             self.take_next()
-            f_value, f_count = self.parse_integer(base)
+            f_value, f_count = self.parse_digits(base)
             f_value = f_value / float(base ** f_count)
 
-        # Exponent part
+        # exponent part
         e_value, e_count = 0, 0
-        if self.current in e_symbols:
+        if self.in_sequence(self.current, e_symbols):
             self.take_next()
             e_sign = +1
-            if self.current in '-+':
+            if self.in_sequence(self.current, '-+'):
                 e_sign = -1 if self.current == '-' else +1
                 self.take_next()
-            e_value, e_count = self.parse_integer(base)
+            e_value, e_count = self.parse_digits(base)
             e_value *= e_sign
-            assert e_count > 0
+            if e_count == 0:
+                raise SyntaxError('Empty exponent part')
 
-        assert i_count > 0 or f_count > 0
+        if i_count == 0 and f_count == 0:
+            raise SyntaxError('Empty integer part and fraction part')
         return (i_value + f_value) * (e_base ** e_value)
 
-    def parse_integer(self, base):
-        assert base in (10, 16)
+    def parse_digits(self, base):
+        """
+        parse a sequence of digits to integer
+        """
         valid_digits = '0123456789' if base == 10 else '0123456789abcdefABCDEF'
 
         value, count = 0, 0
-        while self.current in valid_digits:
+        while self.in_sequence(self.current, valid_digits):
             count += 1
             digit = int(self.current, base=base)
             value = value * base + digit
