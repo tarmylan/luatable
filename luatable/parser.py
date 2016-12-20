@@ -28,6 +28,13 @@ class Parser(object):
             self._current = self._NOMORE
         return self._current
 
+    def _reset_index(self, index):
+        """
+        reset the index to an old one
+        """
+        self._index = index
+        self._current = self.source[index]
+
     def _in_sequence(self, char, sequence):
         """
         check whether a character is in a sequence
@@ -36,6 +43,16 @@ class Parser(object):
             return True
         else:
             return False
+
+    def _skip_newline(self):
+        """
+        skips newline sequence (\\n, \\r, \\n\\r, or \\r\\n)
+        """
+        assert self._in_sequence(self._current, '\n\r')
+        old = self._current    # skip \n or \r
+        self._take_next()
+        if self._in_sequence(self._current, '\n\r') and self._current != old:
+            self._take_next()  # skip \n\r or \r\n
 
     def parse_number(self):
         """
@@ -133,11 +150,7 @@ class Parser(object):
             self._take_next()
         elif self._in_sequence(self._current, '\n\r'):  # real newline
             char = '\n'
-            old = self._current
-            self._take_next()
-            if (self._in_sequence(self._current, '\n\r')
-                and self._current != old):
-                self._take_next()
+            self._skip_newline()
         elif self._current == 'z':                      # zap following spaces
             char = ''
             self._take_next()
@@ -159,3 +172,63 @@ class Parser(object):
 
         return char
 
+    def parse_long_string(self, is_comment=False):
+        """
+        parse a literal long string
+        """
+        assert self._current == '['
+        assert self._in_sequence(self._peak_next(), '=[')
+
+        level, _ = self._parse_long_bracket()
+        if level < 0:
+            raise SyntaxError('bad long string: invalid long string delimiter')
+
+        if self._in_sequence(self._current, '\n\r'):  # starts with a newline
+            self._skip_newline()
+
+        string = ''
+        while self._current != self._NOMORE:
+            if self._current == ']':
+                close_level, _ = self._parse_long_bracket(level, True)
+                if close_level < 0:
+                    string += ']'
+                    self._take_next()
+                else:
+                    return string
+            elif self._in_sequence(self._current, '\n\r'):  # real newline
+                string += '\n'
+                self._skip_newline()
+            else:
+                string += self._current
+                self._take_next()
+        raise SyntaxError('bad long string: unfinished long string')
+
+    def _parse_long_bracket(self, expected_level=None, reset_if_fail=False):
+        """
+        try to find the level of a long bracket, return negative level if fail
+        """
+        assert self._in_sequence(self._current, '[]')
+        delimiter = self._current
+        old_index = self._index
+
+        level = 0
+        sequence = delimiter  # consumed character sequence
+        self._take_next()
+        while self._current == '=':
+            level += 1
+            sequence += '='
+            self._take_next()
+
+        if expected_level is not None and level != expected_level:
+            if reset_if_fail:
+                self._reset_index(old_index)
+            return -1, sequence
+
+        if self._current == delimiter:
+            sequence += delimiter
+            self._take_next()
+            return level, sequence
+        else:
+            if reset_if_fail:
+                self._reset_index(old_index)
+            return -1, sequence

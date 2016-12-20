@@ -21,7 +21,6 @@ class ParserTestCase(unittest.TestCase):
     def test_parse_string(self):
         # Examples from Lua 5.2 Reference Manual
         input1 = ['\'alo\\n123"\'', '"alo\\n123\\""', '\'\\97lo\\10\\04923"\'']
-                 # '[[alo\n123"]]', '[==[\nalo\n123"]==]']
         output1 = 'alo\n123"'
         for i_val in input1:
             self.assertEqual(Parser(i_val).parse_string(), output1)
@@ -32,3 +31,28 @@ class ParserTestCase(unittest.TestCase):
         output2 = 'alo\n123"'
         for i_val in input2:
             self.assertEqual(Parser(i_val).parse_string(), output2)
+
+    def test_parse_long_string(self):
+        # Examples from Lua 5.2 Reference Manual
+        input1 = ['[[alo\n123"]]', '[==[\nalo\n123"]==]']
+        output1 = 'alo\n123"'
+        for i_val in input1:
+            self.assertEqual(Parser(i_val).parse_long_string(), output1)
+
+        # Examples from Programming in Lua, 3e
+        page_lines = [
+            '[[',
+            '<html>',
+            '<head>',
+            '  <title>An HTML Page</title>',
+            '</head>',
+            '<body>',
+            '  <a href="http://www.lua.org">Lua</a>',
+            '</body>',
+            '</html>',
+            ']]'
+        ]
+        output2 = '\n'.join(page_lines[1:-1]) + '\n'
+        for newline in ('\n', '\r', '\n\r', '\r\n'):
+            input2 = newline.join(page_lines)
+            self.assertEqual(Parser(input2).parse_long_string(), output2)
