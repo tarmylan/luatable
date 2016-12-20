@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 import unittest
 from luatable.parser import Parser
 
@@ -20,5 +18,17 @@ class ParserTestCase(unittest.TestCase):
         for i_val, o_val in zip(input1 + input2, output1 + output2):
             self.assertAlmostEqual(Parser(i_val).parse_number(), o_val)
 
-if __name__ == '__main__':
-    unittest.main()
+    def test_parse_string(self):
+        # Examples from Lua 5.2 Reference Manual
+        input1 = ['\'alo\\n123"\'', '"alo\\n123\\""', '\'\\97lo\\10\\04923"\'']
+                 # '[[alo\n123"]]', '[==[\nalo\n123"]==]']
+        output1 = 'alo\n123"'
+        for i_val in input1:
+            self.assertEqual(Parser(i_val).parse_string(), output1)
+
+        # Examples from Programming in Lua, 3e
+        input2 = ['"alo\\n123\\""', '\'\\97lo\\10\\04923"\'',
+                  "'\\x61\\x6c\\x6f\\x0a\\x31\\x32\\x33\\x22'"]
+        output2 = 'alo\n123"'
+        for i_val in input2:
+            self.assertEqual(Parser(i_val).parse_string(), output2)
