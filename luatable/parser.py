@@ -2,6 +2,13 @@ class Parser(object):
 
     _NOMORE = ''
 
+    _KWORDS = {
+        'and',   'break', 'do',       'else', 'elseif', 'end',
+        'false', 'for',   'function', 'goto', 'if',     'in',
+        'local', 'nil',   'not',      'or',   'repeat', 'return',
+        'then',  'true',  'until',    'while'
+    }
+
     def __init__(self, source):
         self._source = source
         self._index = 0
@@ -44,9 +51,16 @@ class Parser(object):
         else:
             return False
 
+    def _skip_spaces(self):
+        """
+        skip whitespaces
+        """
+        while self._current.isspace():
+            self._take_next()
+
     def _skip_newline(self):
         """
-        skips newline sequence (\\n, \\r, \\n\\r, or \\r\\n)
+        skip newline sequence (\\n, \\r, \\n\\r, or \\r\\n)
         """
         assert self._in_sequence(self._current, '\n\r')
         old = self._current    # skip \n or \r
@@ -58,7 +72,8 @@ class Parser(object):
         """
         parse a string to a number
         """
-        assert self._current == '.' or self._current.isdigit()
+        assert self._current.isdigit() or (self._current == '.' and
+                                           self._peak_next().isdigit())
 
         if self._current == '0' and self._in_sequence(self._peak_next(), 'xX'):
             base = 16
@@ -154,8 +169,7 @@ class Parser(object):
         elif self._current == 'z':                      # zap following spaces
             char = ''
             self._take_next()
-            while self._current.isspace():
-                self._take_next()
+            self._skip_spaces()
         elif self._current.isdigit():                   # \ddd, up to 3 dec
             d_value, d_count = self._parse_digits(10, 3)
             if d_value > 255:
@@ -232,3 +246,18 @@ class Parser(object):
             if reset_if_fail:
                 self._reset_index(old_index)
             return -1, sequence
+
+    def parse_word(self):
+        """
+        parse a word (identifier or keyword)
+        """
+        assert self._current.isalpha() or self._current == '_'
+
+        word = self._current
+        self._take_next()
+        while self._current.isalnum() or self._current == '_':
+            word += self._current
+            self._take_next()
+        return word
+
+

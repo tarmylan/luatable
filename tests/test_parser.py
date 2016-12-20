@@ -56,3 +56,11 @@ class ParserTestCase(unittest.TestCase):
         for newline in ('\n', '\r', '\n\r', '\r\n'):
             input2 = newline.join(page_lines)
             self.assertEqual(Parser(input2).parse_long_string(), output2)
+
+    def test_parse_word(self):
+        # Examples from C Programming: A Modern Approach, 2e
+        input1 = ['times10', 'get_next_char', '_done']
+        output1 = input1
+        for i_val, o_val in zip(input1, output1):
+            self.assertEqual(Parser(i_val).parse_word(), o_val)
+
