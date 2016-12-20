@@ -114,6 +114,8 @@ class Parser(object):
             elif self._current == '\\':
                 self._take_next()
                 string += self._parse_escapee()
+            elif self._in_sequence(self._current, '\n\r'):
+                raise SyntaxError('bad string: unfinished string')
             else:
                 string += self._current
                 self._take_next()
@@ -126,30 +128,34 @@ class Parser(object):
         escapees = {'a': '\a', 'b': '\b', 'f': '\f', 'n': '\n', 'r': '\r',
                     't': '\t', 'v': '\v', '"': '"', "'": "'", '\\': '\\'}
 
-        if self._current in escapees:           # abfnrtv\"'
+        if self._current in escapees:                   # abfnrtv\"'
             char = escapees[self._current]
             self._take_next()
-        elif self._current == '\n':             # real newline
+        elif self._in_sequence(self._current, '\n\r'):  # real newline
             char = '\n'
+            old = self._current
             self._take_next()
-        elif self._current == 'z':              # skips whitespaces
+            if (self._in_sequence(self._current, '\n\r')
+                and self._current != old):
+                self._take_next()
+        elif self._current == 'z':                      # zap following spaces
             char = ''
             self._take_next()
             while self._current.isspace():
                 self._take_next()
-        elif self._current.isdigit():           # \ddd, up to 3 dec digits
+        elif self._current.isdigit():                   # \ddd, up to 3 dec
             d_value, d_count = self._parse_digits(10, 3)
             if d_value > 255:
-                raise SyntaxError('bad string: numerical value exceeds 255')
+                raise SyntaxError('bad string: decimal value exceeds 255')
             char = chr(d_value)
-        elif self._current == 'x':              # \xXX, exactly 2 hex digits
+        elif self._current == 'x':                      # \xXX, exactly 2 hex
             self._take_next()
             x_value, x_count = self._parse_digits(16, 2)
             if x_count != 2:
                 raise SyntaxError('bad string: needs exactly 2 hex digits')
             char = chr(x_value)
-        else:                                   # whatever
-            raise SyntaxError('bad string: unexpected escape sequence')
+        else:                                           # whatever
+            raise SyntaxError('bad string: invalid escape sequence')
 
         return char
 
