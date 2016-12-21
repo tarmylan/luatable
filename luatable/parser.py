@@ -1,13 +1,19 @@
+# -*- coding: utf-8 -*-
+"""
+    luatable.parser
+    ~~~~~~~~~~~~~~~
+
+    Implements a Lua table parser (decoder)
+"""
+
 class Parser(object):
+    """
+    A parser that is able to decode table constructor
+    or some basic types (nil, boolean, number, and string)
+    """
 
+    # empty string as end of source indicator
     _NOMORE = ''
-
-    _KWORDS = {
-        'and',   'break', 'do',       'else', 'elseif', 'end',
-        'false', 'for',   'function', 'goto', 'if',     'in',
-        'local', 'nil',   'not',      'or',   'repeat', 'return',
-        'then',  'true',  'until',    'while'
-    }
 
     def __init__(self, source):
         self._source = source
@@ -40,7 +46,7 @@ class Parser(object):
         reset the index to an old one
         """
         self._index = index
-        self._current = self.source[index]
+        self._current = self._source[index]
 
     def _in_sequence(self, char, sequence):
         """
@@ -63,17 +69,48 @@ class Parser(object):
         skip newline sequence (\\n, \\r, \\n\\r, or \\r\\n)
         """
         assert self._in_sequence(self._current, '\n\r')
-        old = self._current    # skip \n or \r
-        self._take_next()
+        old = self._current
+        self._take_next()      # skip \n or \r
         if self._in_sequence(self._current, '\n\r') and self._current != old:
             self._take_next()  # skip \n\r or \r\n
+
+    def _number_coming(self):
+        """
+        check whether a number is coming
+        """
+        return self._current.isdigit() or (self._current == '.' and
+                                           self._peak_next().isdigit())
+
+    def _string_coming(self):
+        """
+        check whether a short string is coming
+        """
+        return self._in_sequence(self._current, ['"', "'"])
+
+    def _long_string_coming(self):
+        """
+        check whether a long string is coming
+        """
+        return (self._current == '[' and
+                self._in_sequence(self._peak_next(), '=['))
+
+    def _word_coming(self):
+        """
+        check whether a word is coming
+        """
+        return self._current.isalpha() or self._current == '_'
+
+    def _table_coming(self):
+        """
+        check whether a table is coming
+        """
+        return self._current == '{'
 
     def parse_number(self):
         """
         parse a string to a number
         """
-        assert self._current.isdigit() or (self._current == '.' and
-                                           self._peak_next().isdigit())
+        assert self._number_coming()
 
         if self._current == '0' and self._in_sequence(self._peak_next(), 'xX'):
             base = 16
@@ -109,15 +146,18 @@ class Parser(object):
             if e_count == 0:
                 raise SyntaxError('bad number: empty exponent part')
 
+        # should not happen
         if i_count == 0 and f_count == 0:
             raise SyntaxError('bad number: empty integer and fraction part')
-        return (i_value + f_value) * (e_base ** e_value)
+        number = (i_value + f_value) * (e_base ** e_value)
+        # make sure to return a floating-point number
+        return float(number)
 
     def _parse_digits(self, base, limit=None):
         """
         parse a sequence of digits to an integer
         """
-        valid_digits = '0123456789' if base == 10 else '0123456789abcdefABCDEF'
+        valid_digits = '0123456789abcdefABCDEF' if base == 16 else '0123456789'
 
         value, count = 0, 0
         while self._in_sequence(self._current, valid_digits):
@@ -133,7 +173,7 @@ class Parser(object):
         """
         parse a literal short string
         """
-        assert self._in_sequence(self._current, ['"', "'"])
+        assert self._string_coming()
 
         delimiter = self._current
         self._take_next()
@@ -173,16 +213,16 @@ class Parser(object):
         elif self._current.isdigit():                   # \ddd, up to 3 dec
             d_value, d_count = self._parse_digits(10, 3)
             if d_value > 255:
-                raise SyntaxError('bad string: decimal value exceeds 255')
+                raise SyntaxError('bad string: esc: decimal value exceeds 255')
             char = chr(d_value)
         elif self._current == 'x':                      # \xXX, exactly 2 hex
             self._take_next()
             x_value, x_count = self._parse_digits(16, 2)
             if x_count != 2:
-                raise SyntaxError('bad string: needs exactly 2 hex digits')
+                raise SyntaxError('bad string: esc: need exactly 2 hex digits')
             char = chr(x_value)
         else:                                           # whatever
-            raise SyntaxError('bad string: invalid escape sequence')
+            raise SyntaxError('bad string: esc: invalid escape sequence')
 
         return char
 
@@ -190,8 +230,7 @@ class Parser(object):
         """
         parse a literal long string
         """
-        assert self._current == '['
-        assert self._in_sequence(self._peak_next(), '=[')
+        assert self._long_string_coming()
 
         level, _ = self._parse_long_bracket()
         if level < 0:
@@ -233,31 +272,159 @@ class Parser(object):
             sequence += '='
             self._take_next()
 
-        if expected_level is not None and level != expected_level:
+        level_not_matched = (expected_level is not None and
+                             level != expected_level)
+        delimiter_not_matched = self._current != delimiter
+        if level_not_matched or delimiter_not_matched:
             if reset_if_fail:
                 self._reset_index(old_index)
             return -1, sequence
-
-        if self._current == delimiter:
+        else:
             sequence += delimiter
             self._take_next()
             return level, sequence
-        else:
-            if reset_if_fail:
-                self._reset_index(old_index)
-            return -1, sequence
 
-    def parse_word(self):
+    _KWORDS = {
+        'and',   'break', 'do',       'else', 'elseif', 'end',
+        'false', 'for',   'function', 'goto', 'if',     'in',
+        'local', 'nil',   'not',      'or',   'repeat', 'return',
+        'then',  'true',  'until',    'while'
+    }
+
+    def _parse_word(self, allow_bool=False, allow_nil=False):
         """
-        parse a word (identifier or keyword)
+        parse a word (nil, true, false, or identifier)
         """
-        assert self._current.isalpha() or self._current == '_'
+        assert self._word_coming()
 
         word = self._current
         self._take_next()
         while self._current.isalnum() or self._current == '_':
             word += self._current
             self._take_next()
-        return word
 
+        not_allowed = self._KWORDS.copy()
+        if allow_bool:
+            not_allowed -= {'true', 'false'}
+        if allow_nil:
+            not_allowed -= {'nil'}
+        if word in not_allowed:
+            raise SyntaxError("bad word: '%s' not allowed here" % word)
 
+        if word in {'true', 'false'}:
+            return bool(word)
+        elif word in {'nil'}:
+            return None
+        else:
+            return word
+
+    def _equal_behind_word(self):
+        """
+        check whether there is a '=' behind the current word
+        """
+        assert self._word_coming()
+        old_index = self._index
+        word = self._parse_word(allow_bool=True, allow_nil=True)
+        self._skip_spaces()
+        equal_behind = True if self._current == '=' else False
+        self._reset_index(old_index)
+        return equal_behind
+
+    def parse_table(self):
+        """
+        parse a table to a dict or a list
+        """
+        assert self._table_coming()
+        self._take_next()  # for '{'
+
+        table = {}
+        count = {'rec': 0, 'arr': 0}  # number of record and array elements
+        self._skip_spaces()
+        while self._current != self._NOMORE:
+            if self._current == '}':
+                self._take_next()
+                return self._finalize_table(table, count)
+            else:
+                self._parse_field(table, count)
+                self._skip_spaces()
+                if self._current == '}':
+                    continue
+                elif self._in_sequence(self._current, ',;'):
+                    self._take_next()
+                else:
+                    raise SyntaxError("bad table: unexpected '%s'" %
+                                      self._current)
+                self._skip_spaces()
+
+    def _parse_field(self, table, count):
+        # recfield ::= ‘[’ exp ‘]’ ‘=’ exp | Name ‘=’ exp
+        record_style1 = self._current == '[' and not self._long_string_coming()
+        record_style2 = self._word_coming() and self._equal_behind_word()
+        is_record_field = record_style1 or record_style2
+        if is_record_field:
+            key, value = self._parse_record_field()
+            if value is not None:
+                table[key] = value
+                count['rec'] += 1
+        else:
+            value = self._parse_expression()
+            count['arr'] += 1
+            table[count['arr']] = value
+
+    def _parse_record_field(self):
+        """
+        parse a record field, recfield ::= ‘[’ exp ‘]’ ‘=’ exp | Name ‘=’ exp
+        """
+        if self._current == '[':
+            self._take_next()
+            key = self._parse_expression()  # need to check nil
+            if key is None:
+                raise SyntaxError('bad table: table index is nil')
+            self._skip_spaces()
+            if self._current != ']':
+                raise SyntaxError("bad table: record filed expect ']'")
+            self._take_next()
+        else:
+            key = self._parse_word(allow_bool=False, allow_nil=False)
+
+        self._skip_spaces()
+        if self._current != '=':
+            raise SyntaxError("bad table: record filed expect '='")
+        self._take_next()
+
+        self._skip_spaces()
+        value = self._parse_expression()
+
+        return key, value
+
+    def _finalize_table(self, table, count):
+        """
+        convert dict to list if no record field occurred
+        """
+        if count['rec'] == 0:
+            result = []
+            for i in range(count['arr']):
+                result.append(table[i + 1])
+            return result
+        else:
+            return table
+
+    def _parse_expression(self):
+        """
+        parse a nil, boolean, number, string, or table
+        """
+        if self._word_coming():                 # [_a-zA-Z]
+            word = self.parse_word(allow_bool=True, allow_nil=True)
+            if word not in {None, True, False}:
+                raise SyntaxError('bad expression: unexpected word "%s"' % word)
+            return word
+        elif self._number_coming():             # [0-9] or .[0-9]
+            return self.parse_number()
+        elif self._string_coming():             # ' or "
+            return self.parse_string()
+        elif self._long_string_coming():        # [= or [[
+            return self.parse_long_string()
+        elif self._table_coming():              # {
+            return self.parse_table()
+        else:
+            raise SyntaxError("bad expression: unexpected '%s'" % self._current)
