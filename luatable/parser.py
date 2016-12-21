@@ -338,7 +338,7 @@ class Parser(object):
         self._take_next()  # for '{'
 
         table = {}
-        count = {'rec': 0, 'arr': 0}  # number of record and array elements
+        count = {'rec': 0, 'lst': 0}  # number of record and list elements
         self._skip_spaces()
         while self._current != self._NOMORE:
             if self._current == '}':
@@ -355,9 +355,14 @@ class Parser(object):
                     raise SyntaxError("bad table: unexpected '%s'" %
                                       self._current)
                 self._skip_spaces()
+        raise SyntaxError("bad table: expect '}'")
 
     def _parse_field(self, table, count):
-        # recfield ::= ‘[’ exp ‘]’ ‘=’ exp | Name ‘=’ exp
+        """
+        parse a record-style field or a list-style field
+        recfield ::= ‘[’ exp ‘]’ ‘=’ exp | Name ‘=’ exp
+        lstfield ::= exp
+        """
         record_style1 = self._current == '[' and not self._long_string_coming()
         record_style2 = self._word_coming() and self._equal_behind_word()
         is_record_field = record_style1 or record_style2
@@ -368,12 +373,13 @@ class Parser(object):
                 count['rec'] += 1
         else:
             value = self._parse_expression()
-            count['arr'] += 1
-            table[count['arr']] = value
+            count['lst'] += 1
+            table[count['lst']] = value
 
     def _parse_record_field(self):
         """
-        parse a record field, recfield ::= ‘[’ exp ‘]’ ‘=’ exp | Name ‘=’ exp
+        parse a record field
+        recfield ::= ‘[’ exp ‘]’ ‘=’ exp | Name ‘=’ exp
         """
         if self._current == '[':
             self._take_next()
@@ -403,7 +409,7 @@ class Parser(object):
         """
         if count['rec'] == 0:
             result = []
-            for i in range(count['arr']):
+            for i in range(count['lst']):
                 result.append(table[i + 1])
             return result
         else:
