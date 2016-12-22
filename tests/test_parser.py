@@ -112,7 +112,7 @@ class ParserTestCase(unittest.TestCase):
         # examples from Programming in Lua, 3e
         input1 = """
             {color="blue",
-             thickness=2
+             thickness=2,
              npoints=4,
              {x=0,   y=0},  -- polyline[1]
              {x=-10, y=0},  -- polyline[2]
