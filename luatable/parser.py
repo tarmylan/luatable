@@ -57,12 +57,46 @@ class Parser(object):
         else:
             return False
 
+    def _skip_comment(self):
+        """
+        skip a short/long comment
+        """
+        assert self._comment_coming()
+        self._take_next()  # for the 1st '-'
+        self._take_next()  # for the 2nd '-'
+
+        if self._current == '[':
+            level, _ = self._parse_long_bracket(reset_if_fail=True,
+                                                reset_if_succeed=True)
+            if level >= 0:       # long comment
+                try:
+                    self.parse_long_string()
+                    return
+                except SyntaxError as e:
+                    raise SyntaxError('bad long comment')
+
+        # short comment
+        while self._current != self._NOMORE:
+            if self._in_sequence(self._current, '\n\r'):
+                self._skip_newline()
+                break
+            else:
+                self._take_next()
+
     def _skip_spaces(self):
         """
-        skip whitespaces
+        skip whitespaces and comments
         """
-        while self._current.isspace():
-            self._take_next()
+        while True:
+            converge = True
+            while self._current.isspace():
+                converge = False
+                self._take_next()
+            if self._comment_coming():
+                converge = False
+                self._skip_comment()
+            if converge:
+                break
 
     def _skip_newline(self):
         """
@@ -105,6 +139,12 @@ class Parser(object):
         check whether a table is coming
         """
         return self._current == '{'
+
+    def _comment_coming(self):
+        """
+        check whether a comment is coming
+        """
+        return self._current == '-' and self._peak_next() == '-'
 
     def parse_number(self):
         """
@@ -242,7 +282,8 @@ class Parser(object):
         string = ''
         while self._current != self._NOMORE:
             if self._current == ']':
-                close_level, _ = self._parse_long_bracket(level, True)
+                close_level, _ = self._parse_long_bracket(level,
+                                                          reset_if_fail=True)
                 if close_level < 0:
                     string += ']'
                     self._take_next()
@@ -256,7 +297,8 @@ class Parser(object):
                 self._take_next()
         raise SyntaxError('bad long string: unfinished long string')
 
-    def _parse_long_bracket(self, expected_level=None, reset_if_fail=False):
+    def _parse_long_bracket(self, expected_level=None,
+                            reset_if_fail=False, reset_if_succeed=False):
         """
         try to find the level of a long bracket, return negative level if fail
         """
@@ -282,6 +324,8 @@ class Parser(object):
         else:
             sequence += delimiter
             self._take_next()
+            if reset_if_succeed:
+                self._reset_index(old_index)
             return level, sequence
 
     _KWORDS = {
@@ -425,11 +469,20 @@ class Parser(object):
         """
         parse a nil, boolean, number, string, or table
         """
+        assert not self._comment_coming()
+
         if self._word_coming():                 # [_a-zA-Z]
             word = self.parse_word(allow_bool=True, allow_nil=True)
             if word not in {None, True, False}:
                 raise SyntaxError('bad expression: unexpected word "%s"' % word)
             return word
+        elif self._current == '-':              # -, not comment, as asserted
+            self._take_next()
+            self._skip_spaces()
+            if self._number_coming():           # negative number
+                return -1 * self.parse_number()
+            else:
+                raise SyntaxError("bad expression: unexpected '-'")
         elif self._number_coming():             # [0-9] or .[0-9]
             return self.parse_number()
         elif self._string_coming():             # ' or "
@@ -440,3 +493,15 @@ class Parser(object):
             return self.parse_table()
         else:
             raise SyntaxError("bad expression: unexpected '%s'" % self._current)
+
+    def parse_value(self):
+        """
+        parse a normal value of types nil, boolean, number, string, or table
+        spaces and comments are handled automatically
+        """
+        self._skip_spaces()
+        value = self._parse_expression()
+        self._skip_spaces()
+        if self._current != self._NOMORE:
+            raise SyntaxError("unexpected '%s'" % self._current)
+        return value

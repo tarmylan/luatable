@@ -107,3 +107,26 @@ class ParserTestCase(unittest.TestCase):
                    output6, output7, output8, output9]
         for i_val, o_val in zip(inputs, outputs):
             self.assertEqual(Parser(i_val).parse_table(), o_val)
+
+    def test_parse_value(self):
+        # examples from Programming in Lua, 3e
+        input1 = """
+            {color="blue",
+             thickness=2
+             npoints=4,
+             {x=0,   y=0},  -- polyline[1]
+             {x=-10, y=0},  -- polyline[2]
+             {x=-10, y=1},  -- polyline[3]
+             {x=0,   y=1}   -- polyline[4]
+            }
+        """
+        output1 = {
+            1: {'y': 0,'x':   0},
+            2: {'y': 0,'x': -10},
+            3: {'y': 1,'x': -10},
+            4: {'y': 1,'x':   0},
+            'thickness': 2,
+            'npoints': 4,
+            'color': "blue"
+        }
+        self.assertEqual(Parser(input1).parse_value(), output1)
