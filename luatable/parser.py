@@ -66,14 +66,14 @@ class Parser(object):
         self._take_next()  # for the 2nd '-'
 
         if self._current == '[':
-            level, _ = self._parse_long_bracket(reset_if_fail=True,
-                                                reset_if_succeed=True)
-            if level >= 0:       # long comment
+            level = self._parse_long_bracket(reset_if_fail=True,
+                                             reset_if_succeed=True)
+            if level >= 0:  # long comment
                 try:
                     self.parse_long_string()
-                    return
                 except SyntaxError as e:
                     raise SyntaxError('bad long comment')
+                return
 
         # short comment
         while self._current != self._NOMORE:
@@ -88,14 +88,14 @@ class Parser(object):
         skip whitespaces and comments
         """
         while True:
-            converge = True
+            converged = True
             while self._current.isspace():
-                converge = False
+                converged = False
                 self._take_next()
             if self._comment_coming():
-                converge = False
+                converged = False
                 self._skip_comment()
-            if converge:
+            if converged:
                 break
 
     def _skip_newline(self):
@@ -272,7 +272,7 @@ class Parser(object):
         """
         assert self._long_string_coming()
 
-        level, _ = self._parse_long_bracket()
+        level = self._parse_long_bracket()
         if level < 0:
             raise SyntaxError('bad long string: invalid long string delimiter')
 
@@ -282,8 +282,8 @@ class Parser(object):
         string = ''
         while self._current != self._NOMORE:
             if self._current == ']':
-                close_level, _ = self._parse_long_bracket(level,
-                                                          reset_if_fail=True)
+                close_level = self._parse_long_bracket(level,
+                                                       reset_if_fail=True)
                 if close_level < 0:
                     string += ']'
                     self._take_next()
@@ -307,11 +307,9 @@ class Parser(object):
         old_index = self._index
 
         level = 0
-        sequence = delimiter  # consumed character sequence
         self._take_next()
         while self._current == '=':
             level += 1
-            sequence += '='
             self._take_next()
 
         level_not_matched = (expected_level is not None and
@@ -320,13 +318,12 @@ class Parser(object):
         if level_not_matched or delimiter_not_matched:
             if reset_if_fail:
                 self._reset_index(old_index)
-            return -1, sequence
+            return -1
         else:
-            sequence += delimiter
             self._take_next()
             if reset_if_succeed:
                 self._reset_index(old_index)
-            return level, sequence
+            return level
 
     _KWORDS = {
         'and',   'break', 'do',       'else', 'elseif', 'end',
@@ -392,7 +389,7 @@ class Parser(object):
                 self._parse_field(table, count)
                 self._skip_spaces()
                 if self._current == '}':
-                    continue
+                    continue  # will finish in the next loop
                 elif self._in_sequence(self._current, ',;'):
                     self._take_next()
                 else:
@@ -412,11 +409,11 @@ class Parser(object):
         is_record_field = record_style1 or record_style2
         if is_record_field:
             key, value = self._parse_record_field()
-            if value is not None:
+            if value is not None:  # only insert not nil value
                 table[key] = value
                 count['rec'] += 1
         else:
-            # None may need further processing if the current table is a dict
+            # nil may need further processing if the current table is a dict
             value = self._parse_expression()
             count['lst'] += 1
             table[count['lst']] = value
@@ -452,29 +449,28 @@ class Parser(object):
         """
         convert dict to list if no record field occurred
         """
-        if count['rec'] == 0:
+        if count['rec'] == 0:  # list fields only, convert to a list
             result = []
             for i in range(count['lst']):
                 result.append(table[i + 1])
             return result
-        else:
-            # filter out None
+        else:                  # filter out nil values in the dict
             result = {}
             for key, value in table.items():
                 if value is not None:
                     result[key] = value
-            return table
+            return result
 
     def _parse_expression(self):
         """
-        parse a nil, boolean, number, string, or table
+        (strictly) parse a nil, boolean, number, string, or table
         """
         assert not self._comment_coming()
 
         if self._word_coming():                 # [_a-zA-Z]
             word = self.parse_word(allow_bool=True, allow_nil=True)
             if word not in {None, True, False}:
-                raise SyntaxError('bad expression: unexpected word "%s"' % word)
+                raise SyntaxError("bad expression: unexpected word '%s'" % word)
             return word
         elif self._current == '-':              # -, not comment, as asserted
             self._take_next()
