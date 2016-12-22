@@ -189,9 +189,7 @@ class Parser(object):
         # should not happen
         if i_count == 0 and f_count == 0:
             raise SyntaxError('bad number: empty integer and fraction part')
-        number = (i_value + f_value) * (e_base ** e_value)
-        # make sure to return a floating-point number
-        return float(number)
+        return (i_value + f_value) * (e_base ** e_value)
 
     def _parse_digits(self, base, limit=None):
         """
@@ -353,7 +351,7 @@ class Parser(object):
             raise SyntaxError("bad word: '%s' not allowed here" % word)
 
         if word in {'true', 'false'}:
-            return bool(word)
+            return True if word == 'true' else False
         elif word in {'nil'}:
             return None
         else:
@@ -468,7 +466,7 @@ class Parser(object):
         assert not self._comment_coming()
 
         if self._word_coming():                 # [_a-zA-Z]
-            word = self.parse_word(allow_bool=True, allow_nil=True)
+            word = self._parse_word(allow_bool=True, allow_nil=True)
             if word not in {None, True, False}:
                 raise SyntaxError("bad expression: unexpected word '%s'" % word)
             return word

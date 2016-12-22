@@ -6,5 +6,5 @@
     An implementation of Lua table parser and generator
 """
 
-from luatable.parser import fromlua
-from luatable.generator import tolua
+from .parser import fromlua
+from .generator import tolua
