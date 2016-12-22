@@ -3,7 +3,7 @@
     luatable.parser
     ~~~~~~~~~~~~~~~
 
-    Implements a Lua table parser (decoder)
+    Implements a recursive descent Lua table parser (decoder)
 """
 
 class Parser(object):
@@ -372,6 +372,7 @@ class Parser(object):
                 table[key] = value
                 count['rec'] += 1
         else:
+            # None may need further processing if the current table is a dict
             value = self._parse_expression()
             count['lst'] += 1
             table[count['lst']] = value
@@ -413,6 +414,11 @@ class Parser(object):
                 result.append(table[i + 1])
             return result
         else:
+            # filter out None
+            result = {}
+            for key, value in table.items():
+                if value is not None:
+                    result[key] = value
             return table
 
     def _parse_expression(self):
