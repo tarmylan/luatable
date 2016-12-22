@@ -233,15 +233,15 @@ class Parser(object):
                 self._take_next()
         raise SyntaxError('bad string: unfinished string')
 
+    _ESCAPEES = {'a': '\a', 'b': '\b', 'f': '\f', 'n': '\n', 'r': '\r',
+                 't': '\t', 'v': '\v', '"': '"', "'": "'", '\\': '\\'}
+
     def _parse_escapee(self):
         """
         parse an escape sequence
         """
-        escapees = {'a': '\a', 'b': '\b', 'f': '\f', 'n': '\n', 'r': '\r',
-                    't': '\t', 'v': '\v', '"': '"', "'": "'", '\\': '\\'}
-
-        if self._current in escapees:                   # abfnrtv\"'
-            char = escapees[self._current]
+        if self._current in self._ESCAPEES:             # abfnrtv\"'
+            char = self._ESCAPEES[self._current]
             self._take_next()
         elif self._in_sequence(self._current, '\n\r'):  # real newline
             char = '\n'
@@ -493,7 +493,7 @@ class Parser(object):
     def parse_value(self):
         """
         parse a normal value of types nil, boolean, number, string, or table
-        spaces and comments are handled automatically
+        handle spaces and comments automatically
         """
         self._skip_spaces()
         value = self._parse_expression()
