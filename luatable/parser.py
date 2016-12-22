@@ -501,3 +501,12 @@ class Parser(object):
         if self._current != self._NOMORE:
             raise SyntaxError("unexpected '%s'" % self._current)
         return value
+
+def fromlua(src):
+    """
+    return a reconstituted object from the given Lua object representation
+    """
+    if not isinstance(src, str):
+        raise TypeError('require a string to parse')
+    parser = Parser(src)
+    return parser.parse_value()

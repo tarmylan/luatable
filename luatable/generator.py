@@ -78,3 +78,10 @@ class Generator(object):
             else:
                 output += '\\x' + format(ord(char), 'x')
         return output
+
+def tolua(obj):
+    """
+    return a Lua representation of the given object
+    """
+    generator = Generator(obj)
+    return generator.generate()
