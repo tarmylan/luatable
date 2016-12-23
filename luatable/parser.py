@@ -186,7 +186,6 @@ class Parser(object):
             if e_count == 0:
                 raise SyntaxError('bad number: empty exponent part')
 
-        # should not happen
         if i_count == 0 and f_count == 0:
             raise SyntaxError('bad number: empty integer and fraction part')
         return (i_value + f_value) * (e_base ** e_value)

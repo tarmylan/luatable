@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
     luatable.generator
-    ~~~~~~~~~~~~~~~
+    ~~~~~~~~~~~~~~~~~~
 
     Implements a Lua table generator (encoder)
 """
