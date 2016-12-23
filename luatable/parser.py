@@ -406,6 +406,9 @@ class Parser(object):
         is_record_field = record_style1 or record_style2
         if is_record_field:
             key, value = self._parse_record_field()
+            # only support number or string as key
+            if type(key) not in {int, long, float, str}:
+                raise TypeError("bad table: using type '%s' as key" % type(key))
             if value is not None:  # only insert not nil value
                 table[key] = value
                 count['rec'] += 1
