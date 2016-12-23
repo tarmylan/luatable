@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-    tests.generator
-    ~~~~~~~~~~~~~~~
+    tests.test_generator
+    ~~~~~~~~~~~~~~~~~~~~
 
     Lua table generator (encoder)
 """

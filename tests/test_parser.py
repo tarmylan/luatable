@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
-    tests.parser
-    ~~~~~~~~~~~~
+    tests.test_parser
+    ~~~~~~~~~~~~~~~~~
 
     Lua table parser (decoder)
 """

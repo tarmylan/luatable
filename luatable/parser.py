@@ -422,6 +422,7 @@ class Parser(object):
         """
         if self._current == '[':
             self._take_next()
+            self._skip_spaces()
             key = self._parse_expression()  # need to check nil
             if key is None:
                 raise SyntaxError('bad table: table index is nil')
