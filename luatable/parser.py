@@ -16,6 +16,7 @@ class Parser(object):
     _NOMORE = ''
 
     def __init__(self, source):
+        assert isinstance(source, str)
         self._source = source
         self._index = 0
         self._current = source[0] if len(source) > 0 else self._NOMORE
@@ -45,6 +46,7 @@ class Parser(object):
         """
         reset the index to an old one
         """
+        assert index < len(self._source)
         self._index = index
         self._current = self._source[index]
 
@@ -70,8 +72,8 @@ class Parser(object):
                                              reset_if_succeed=True)
             if level >= 0:  # long comment
                 try:
-                    self.parse_long_string()
-                except SyntaxError as e:
+                    self._parse_long_string()
+                except SyntaxError:
                     raise SyntaxError('bad long comment')
                 return
 
@@ -104,9 +106,9 @@ class Parser(object):
         """
         assert self._in_sequence(self._current, '\n\r')
         old = self._current
-        self._take_next()      # skip \n or \r
+        self._take_next()      # \n or \r
         if self._in_sequence(self._current, '\n\r') and self._current != old:
-            self._take_next()  # skip \n\r or \r\n
+            self._take_next()  # \n\r or \r\n
 
     def _number_coming(self):
         """
@@ -146,7 +148,7 @@ class Parser(object):
         """
         return self._current == '-' and self._peak_next() == '-'
 
-    def parse_number(self):
+    def _parse_number(self):
         """
         parse a string to a number
         """
@@ -156,8 +158,8 @@ class Parser(object):
             base = 16
             e_symbols = 'pP'
             e_base = 2
-            self._take_next()  # for '0'
-            self._take_next()  # for 'x' or 'X'
+            self._take_next()  # '0'
+            self._take_next()  # 'x' or 'X'
         else:
             base = 10
             e_symbols = 'eE'
@@ -192,7 +194,7 @@ class Parser(object):
 
     def _parse_digits(self, base, limit=None):
         """
-        parse a sequence of digits to an integer
+        parse a (maybe empty) sequence of digits to an integer
         """
         valid_digits = '0123456789abcdefABCDEF' if base == 16 else '0123456789'
 
@@ -206,7 +208,7 @@ class Parser(object):
                 break
         return value, count
 
-    def parse_string(self):
+    def _parse_string(self):
         """
         parse a literal short string
         """
@@ -224,7 +226,7 @@ class Parser(object):
                 self._take_next()
                 string += self._parse_escapee()
             elif self._in_sequence(self._current, '\n\r'):
-                raise SyntaxError('bad string: unfinished string')
+                break
             else:
                 string += self._current
                 self._take_next()
@@ -263,7 +265,7 @@ class Parser(object):
 
         return char
 
-    def parse_long_string(self, is_comment=False):
+    def _parse_long_string(self):
         """
         parse a literal long string
         """
@@ -351,7 +353,7 @@ class Parser(object):
 
         if word in {'true', 'false'}:
             return True if word == 'true' else False
-        elif word in {'nil'}:
+        elif word == 'nil':
             return None
         else:
             return word
@@ -368,7 +370,7 @@ class Parser(object):
         self._reset_index(old_index)
         return equal_behind
 
-    def parse_table(self):
+    def _parse_table(self):
         """
         parse a table to a dict or a list
         """
@@ -408,7 +410,8 @@ class Parser(object):
             key, value = self._parse_record_field()
             # only support number or string as key
             if type(key) not in {int, long, float, str}:
-                raise TypeError("bad table: using type '%s' as key" % type(key))
+                raise TypeError("bad table: unsupported key type '%s'" %
+                                type(key))
             if value is not None:  # only insert not nil value
                 table[key] = value
                 count['rec'] += 1
@@ -426,9 +429,7 @@ class Parser(object):
         if self._current == '[':
             self._take_next()
             self._skip_spaces()
-            key = self._parse_expression()  # need to check nil
-            if key is None:
-                raise SyntaxError('bad table: table index is nil')
+            key = self._parse_expression()
             self._skip_spaces()
             if self._current != ']':
                 raise SyntaxError("bad table: record filed expect ']'")
@@ -450,21 +451,21 @@ class Parser(object):
         """
         convert dict to list if no record field occurred
         """
-        if count['rec'] == 0:  # list fields only, convert to a list
-            result = []
-            for i in range(count['lst']):
-                result.append(table[i + 1])
-            return result
-        else:                  # filter out nil values in the dict
+        if count['rec'] > 0:    # a dict, filter out nil values
             result = {}
             for key, value in table.items():
                 if value is not None:
                     result[key] = value
             return result
+        else:                   # list fields only, convert to a list
+            result = []
+            for i in range(count['lst']):
+                result.append(table[i + 1])
+            return result
 
     def _parse_expression(self):
         """
-        (strictly) parse a nil, boolean, number, string, or table
+        parse an expression (nil, boolean, number, string, or table)
         """
         assert not self._comment_coming()
 
@@ -477,24 +478,23 @@ class Parser(object):
             self._take_next()
             self._skip_spaces()
             if self._number_coming():           # negative number
-                return -1 * self.parse_number()
+                return -1 * self._parse_number()
             else:
                 raise SyntaxError("bad expression: unexpected '-'")
         elif self._number_coming():             # [0-9] or .[0-9]
-            return self.parse_number()
+            return self._parse_number()
         elif self._string_coming():             # ' or "
-            return self.parse_string()
+            return self._parse_string()
         elif self._long_string_coming():        # [= or [[
-            return self.parse_long_string()
+            return self._parse_long_string()
         elif self._table_coming():              # {
-            return self.parse_table()
+            return self._parse_table()
         else:
             raise SyntaxError("bad expression: unexpected '%s'" % self._current)
 
-    def parse_value(self):
+    def parse(self):
         """
-        parse a normal value of types nil, boolean, number, string, or table
-        handle spaces and comments automatically
+        parse a given Lua representation to a Python object
         """
         self._skip_spaces()
         value = self._parse_expression()
@@ -505,9 +505,9 @@ class Parser(object):
 
 def fromlua(src):
     """
-    return a reconstituted object from the given Lua object representation
+    return a reconstituted object from the given Lua representation
     """
     if not isinstance(src, str):
         raise TypeError('require a string to parse')
     parser = Parser(src)
-    return parser.parse_value()
+    return parser.parse()

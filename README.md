@@ -1,6 +1,6 @@
 # LuaTable
 
-LuaTable is a simple parser and generator for Lua tables.
+LuaTable is a simple implementation of Lua table parser and generator.
 
 ## Examples
 
@@ -14,14 +14,15 @@ LuaTable is a simple parser and generator for Lua tables.
 ...             0xA23p-4;               -- binary floating-point expression
 ...             '\\97lo\\10\\04923"',               -- single-quoted string
 ...             "\\x61\\x6c\\x6f\\x0a123\\x22",     -- double-quoted string
-...             [==[\nalo\n123"]==]                 -- multi-line string
+...             [==[\nalo\n123"]==],                -- multi-line string
 ...         },
 ...         dict = {
 ...             [ [[kikyo]]] = true,                -- long string as key
 ...             ["kagome"] = false,                 -- short string as key
-...             inuyasha = nil;                     -- name as key
+...             inuyasha = nil;                     --[[ name as key
+...                                                      will be ignored ]]
 ...             19961113.E-4,               -- positive, empty fraction part
-...             -.20080618e4                -- negative, empty integer part
+...             -.20080618e4,               -- negative, empty integer part
 ...         }
 ...     }
 ... """
@@ -36,7 +37,3 @@ LuaTable is a simple parser and generator for Lua tables.
 >>> assert fromlua(src) == fromlua(tolua(fromlua(src)))
 >>>
 ```
-
-## License
-
-LuaTable is MIT licensed.

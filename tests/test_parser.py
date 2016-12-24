@@ -25,28 +25,28 @@ class ParserTestCase(unittest.TestCase):
                    255, 419, 0.125, 0.5, 42.75]
 
         for i_val, o_val in zip(input1 + input2, output1 + output2):
-            self.assertAlmostEqual(Parser(i_val).parse_number(), o_val)
+            self.assertAlmostEqual(Parser(i_val).parse(), o_val)
 
     def test_parse_string(self):
         # examples from Lua 5.2 Reference Manual
         input1 = ['\'alo\\n123"\'', '"alo\\n123\\""', '\'\\97lo\\10\\04923"\'']
         output1 = 'alo\n123"'
         for i_val in input1:
-            self.assertEqual(Parser(i_val).parse_string(), output1)
+            self.assertEqual(Parser(i_val).parse(), output1)
 
         # examples from Programming in Lua, 3e
         input2 = ['"alo\\n123\\""', '\'\\97lo\\10\\04923"\'',
                   "'\\x61\\x6c\\x6f\\x0a\\x31\\x32\\x33\\x22'"]
         output2 = 'alo\n123"'
         for i_val in input2:
-            self.assertEqual(Parser(i_val).parse_string(), output2)
+            self.assertEqual(Parser(i_val).parse(), output2)
 
     def test_parse_long_string(self):
         # examples from Lua 5.2 Reference Manual
         input1 = ['[[alo\n123"]]', '[==[\nalo\n123"]==]']
         output1 = 'alo\n123"'
         for i_val in input1:
-            self.assertEqual(Parser(i_val).parse_long_string(), output1)
+            self.assertEqual(Parser(i_val).parse(), output1)
 
         # examples from Programming in Lua, 3e
         page_lines = [
@@ -64,14 +64,14 @@ class ParserTestCase(unittest.TestCase):
         output2 = '\n'.join(page_lines[1:-1]) + '\n'
         for newline in ('\n', '\r', '\n\r', '\r\n'):
             input2 = newline.join(page_lines)
-            self.assertEqual(Parser(input2).parse_long_string(), output2)
+            self.assertEqual(Parser(input2).parse(), output2)
 
     def test_parse_table(self):
         # examples from Lua 5.2 Reference Manual
         input1 = '{ ["f(1)"] = "g"; "x", "y"; x = 1, "f(x)", [30] = 23; 45 }'
         output1 = {1: "x", 2: "y", 3: "f(x)", 4: 45,
                    "f(1)": "g", 30: 23, "x": 1}
-        self.assertEqual(Parser(input1).parse_table(), output1)
+        self.assertEqual(Parser(input1).parse(), output1)
 
         # examples from Programming in Lua, 3e
         input2 = """{"Sunday", "Monday", "Tuesday", "Wednesday",
@@ -106,7 +106,7 @@ class ParserTestCase(unittest.TestCase):
         outputs = [output2, output3, output4, output5,
                    output6, output7, output8, output9]
         for i_val, o_val in zip(inputs, outputs):
-            self.assertEqual(Parser(i_val).parse_table(), o_val)
+            self.assertEqual(Parser(i_val).parse(), o_val)
 
     def test_parse_value(self):
         # examples from Programming in Lua, 3e
@@ -129,4 +129,4 @@ class ParserTestCase(unittest.TestCase):
             'npoints': 4,
             'color': "blue"
         }
-        self.assertEqual(Parser(input1).parse_value(), output1)
+        self.assertEqual(Parser(input1).parse(), output1)

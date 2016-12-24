@@ -10,7 +10,7 @@ import string
 
 class Generator(object):
     """
-    A generator that is able to generate a Lua table constructor
+    A generator that is able to generate a table constructor
     or some basic types (nil, boolean, number, and string)
     """
 
@@ -25,7 +25,7 @@ class Generator(object):
 
     def _generate(self, obj):
         """
-        helper method for self.generate()
+        the workhorse
         """
         output = ''
         if obj is None:                         # nil
@@ -57,13 +57,13 @@ class Generator(object):
                 output += self._generate(value)
                 output += ','
             output += '}'
-        else:
-            raise TypeError('unsupported type: %s' % type(obj))
+        else:                                   # whatever
+            raise TypeError('unsupported type: "%s"' % type(obj))
 
         return output
 
     _ESCAPEES = {'\a': 'a', '\b': 'b', '\t': 't', '\n': 'n', '\v': 'v',
-                 '\f': 'f', '\r': 'r', '"': '"', "'": "'", '\\': '\\'}
+                 '\f': 'f', '\r': 'r',  '"': '"',  "'": "'", '\\': '\\'}
 
     def _generate_string(self, s):
         """
@@ -81,7 +81,7 @@ class Generator(object):
 
 def tolua(obj):
     """
-    return a Lua representation of the given object
+    return the Lua representation of the given object
     """
     generator = Generator(obj)
     return generator.generate()
