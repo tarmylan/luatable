@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
     luatable.parser
     ~~~~~~~~~~~~~~~
@@ -6,13 +5,9 @@
     Implements a recursive descent Lua table parser (decoder)
 """
 
-class Parser(object):
-    """
-    A parser that is able to decode table constructor
-    or some basic types (nil, boolean, number, and string)
-    """
+class Parser:
 
-    # empty string as end of source indicator
+    # end of source indicator
     _NOMORE = ''
 
     def __init__(self, source):
@@ -196,6 +191,7 @@ class Parser(object):
         """
         parse a (maybe empty) sequence of digits to an integer
         """
+        assert base in (10, 16)
         valid_digits = '0123456789abcdefABCDEF' if base == 16 else '0123456789'
 
         value, count = 0, 0
@@ -400,7 +396,7 @@ class Parser(object):
     def _parse_field(self, table, count):
         """
         parse a record-style field or a list-style field
-        recfield ::= ‘[’ exp ‘]’ ‘=’ exp | Name ‘=’ exp
+        recfield ::= [ exp ] = exp | Name = exp
         lstfield ::= exp
         """
         record_style1 = self._current == '[' and not self._long_string_coming()
@@ -409,7 +405,7 @@ class Parser(object):
         if is_record_field:
             key, value = self._parse_record_field()
             # only support number or string as key
-            if type(key) not in {int, long, float, str}:
+            if not isinstance(key, (int, float, str)):
                 raise TypeError("bad table: unsupported key type '%s'" %
                                 type(key))
             if value is not None:  # only insert not nil value
@@ -424,7 +420,7 @@ class Parser(object):
     def _parse_record_field(self):
         """
         parse a record field
-        recfield ::= ‘[’ exp ‘]’ ‘=’ exp | Name ‘=’ exp
+        recfield ::= [ exp ] = exp | Name = exp
         """
         if self._current == '[':
             self._take_next()

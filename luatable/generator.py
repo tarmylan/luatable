@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
     luatable.generator
     ~~~~~~~~~~~~~~~~~~
@@ -8,11 +7,7 @@
 
 import string
 
-class Generator(object):
-    """
-    A generator that is able to generate a table constructor
-    or some basic types (nil, boolean, number, and string)
-    """
+class Generator:
 
     def __init__(self, obj):
         self._obj = obj
@@ -35,7 +30,7 @@ class Generator(object):
                 output += 'true'
             else:
                 output += 'false'
-        elif type(obj) in {int, long, float}:   # number
+        elif isinstance(obj, (int, float)):     # number
             output += str(obj)
         elif isinstance(obj, str):              # string
             output += '"'
@@ -50,6 +45,9 @@ class Generator(object):
         elif isinstance(obj, dict):             # contains record fields
             output += '{'
             for key, value in obj.items():
+                if not isinstance(key, (int, float, str)):
+                    message = 'unsupported key type: %s.' % type(obj)
+                    raise TypeError(message)
                 output += '['
                 output += self._generate(key)
                 output += ']'
@@ -58,12 +56,13 @@ class Generator(object):
                 output += ','
             output += '}'
         else:                                   # whatever
-            raise TypeError('unsupported type: "%s"' % type(obj))
-
+            raise TypeError('unsupported type: %s.' % type(obj))
         return output
 
     _ESCAPEES = {'\a': 'a', '\b': 'b', '\t': 't', '\n': 'n', '\v': 'v',
                  '\f': 'f', '\r': 'r',  '"': '"',  "'": "'", '\\': '\\'}
+
+    _PRINTABLE = set(string.printable)
 
     def _generate_string(self, s):
         """
@@ -73,7 +72,7 @@ class Generator(object):
         for char in s:
             if char in self._ESCAPEES:
                 output += '\\' + self._ESCAPEES[char]
-            elif char in string.printable:
+            elif char in self._PRINTABLE:
                 output += char
             else:
                 output += '\\x' + format(ord(char), 'x')

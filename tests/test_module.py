@@ -1,9 +1,8 @@
-# -*- coding: utf-8 -*-
 """
     tests.test_module
     ~~~~~~~~~~~~~~~~~
 
-    Lua table module
+    LuaTable module
 """
 
 import unittest
@@ -16,8 +15,8 @@ class ModuleTestCase(unittest.TestCase):
         input1 = """
             {
                 list = {
-                    3141.6e-3,              -- decimal floating-point expression
-                    0xA23p-4;               -- binary floating-point expression
+                    3141.6e-3,                  -- decimal floating-point number
+                    0xA23p-4;                   -- binary floating-point number
                     '\\97lo\\10\\04923"',               -- single-quoted string
                     "\\x61\\x6c\\x6f\\x0a123\\x22",     -- double-quoted string
                     [==[\nalo\n123"]==],                -- multi-line string
