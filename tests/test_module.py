@@ -2,7 +2,7 @@
     tests.test_module
     ~~~~~~~~~~~~~~~~~
 
-    LuaTable module
+    The luatable module
 """
 
 import unittest

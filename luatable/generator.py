@@ -46,7 +46,7 @@ class Generator:
             output += '{'
             for key, value in obj.items():
                 if not isinstance(key, (int, float, str)):
-                    message = 'unsupported key type: %s.' % type(obj)
+                    message = "unsupported key type '%s'" % type(key)
                     raise TypeError(message)
                 output += '['
                 output += self._generate(key)
@@ -56,7 +56,7 @@ class Generator:
                 output += ','
             output += '}'
         else:                                   # whatever
-            raise TypeError('unsupported type: %s.' % type(obj))
+            raise TypeError("unsupported object type '%s'" % type(obj))
         return output
 
     _ESCAPEES = {'\a': 'a', '\b': 'b', '\t': 't', '\n': 'n', '\v': 'v',
